@@ -91,39 +91,24 @@ function nb_generate_custom_css() {
     return $css;
 }
 
-// Add lazy loading and WebP support to images (frontend only)
+// Add lazy loading to images (frontend only, simplified)
 function nb_add_lazy_loading( $content ) {
-    // Only apply on frontend, not in admin or REST API
-    if ( is_admin() || wp_doing_ajax() || ( defined( 'REST_REQUEST' ) && REST_REQUEST ) ) {
+    // Only apply on frontend, not in admin, AJAX, or REST API
+    if ( is_admin() || wp_doing_ajax() || ( defined( 'REST_REQUEST' ) && REST_REQUEST ) || ( defined( 'DOING_CRON' ) && DOING_CRON ) ) {
         return $content;
     }
 
-    // Add lazy loading
-    $content = preg_replace( '/<img(.*?)src=/', '<img$1loading="lazy" src=', $content );
-
-    // Add WebP support with fallbacks
-    $content = preg_replace_callback(
-        '/<img([^>]+)src=["\']([^"\']+\.(jpg|jpeg|png))["\']([^>]*)>/i',
-        function( $matches ) {
-            $webp_url = preg_replace( '/\.(jpg|jpeg|png)$/i', '.webp', $matches[2] );
-            $webp_path = str_replace( get_site_url(), ABSPATH, $webp_url );
-
-            if ( file_exists( $webp_path ) ) {
-                return '<picture>
-                    <source srcset="' . esc_url( $webp_url ) . '" type="image/webp">
-                    <img' . $matches[1] . 'src="' . esc_url( $matches[2] ) . '"' . $matches[4] . '>
-                </picture>';
-            }
-
-            return $matches[0];
-        },
-        $content
-    );
+    // Simple lazy loading without WebP conversion to avoid memory issues
+    $content = preg_replace( '/<img((?![^>]*loading=)[^>]*)>/i', '<img$1 loading="lazy">', $content );
 
     return $content;
 }
-add_filter( 'the_content', 'nb_add_lazy_loading' );
-add_filter( 'post_thumbnail_html', 'nb_add_lazy_loading' );
+
+// Only add filters on frontend
+if ( ! is_admin() ) {
+    add_filter( 'the_content', 'nb_add_lazy_loading', 999 );
+    add_filter( 'post_thumbnail_html', 'nb_add_lazy_loading', 999 );
+}
 
 // Add support for more image sizes
 function nb_add_image_sizes() {
