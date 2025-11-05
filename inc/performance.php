@@ -91,24 +91,9 @@ function nb_generate_custom_css() {
     return $css;
 }
 
-// Add lazy loading to images (frontend only, simplified)
-function nb_add_lazy_loading( $content ) {
-    // Only apply on frontend, not in admin, AJAX, or REST API
-    if ( is_admin() || wp_doing_ajax() || ( defined( 'REST_REQUEST' ) && REST_REQUEST ) || ( defined( 'DOING_CRON' ) && DOING_CRON ) ) {
-        return $content;
-    }
-
-    // Simple lazy loading without WebP conversion to avoid memory issues
-    $content = preg_replace( '/<img((?![^>]*loading=)[^>]*)>/i', '<img$1 loading="lazy">', $content );
-
-    return $content;
-}
-
-// Only add filters on frontend
-if ( ! is_admin() ) {
-    add_filter( 'the_content', 'nb_add_lazy_loading', 999 );
-    add_filter( 'post_thumbnail_html', 'nb_add_lazy_loading', 999 );
-}
+// Lazy loading disabled temporarily to troubleshoot memory issues
+// Will be re-enabled once the root cause is identified
+// WordPress 5.5+ has native lazy loading support anyway
 
 // Add support for more image sizes
 function nb_add_image_sizes() {
