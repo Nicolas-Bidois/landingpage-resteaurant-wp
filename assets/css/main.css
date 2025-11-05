@@ -775,6 +775,12 @@ button:focus, a:focus, input:focus, textarea:focus, select:focus {
   background: transparent; border:1px solid rgba(255,255,255,.25);
 }
 
+/* Contact Form 7 custom styles */
+.wpcf7 input[type="date"]::-webkit-calendar-picker-indicator {
+  filter: invert(1);
+  cursor: pointer;
+}
+
 /* ===== Footer pimpé ===== */
 .site-footer, footer[role="contentinfo"]{
   background: linear-gradient(135deg, #0A111D 0%, #1A1F2E 100%);
