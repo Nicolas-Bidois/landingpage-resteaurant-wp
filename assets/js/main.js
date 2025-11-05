@@ -55,9 +55,9 @@ document.addEventListener('click', (e)=>{
 function nbEsc(s){
   return String(s)
     .replaceAll('&','&amp;')
-    .replaceAll('<','&lt;')
-    .replaceAll('>','&gt;')
-    .replaceAll('"','&quot;')
+    .replaceAll('<','<')
+    .replaceAll('>','>')
+    .replaceAll('"','"')
     .replaceAll("'",'&#039;');
 }
 
@@ -88,7 +88,7 @@ function nbEsc(s){
     if(resCats.ok) cats = await resCats.json();
   } catch(e){ /* ignore */ }
 
-  // Ordonne/filtre (adapte la liste pour limiter un “secteur”)
+  // Ordonne/filtre (adapte la liste pour limiter un "secteur")
   const order = ['entrees','plats','desserts','boissons']; // <- réduis ici si besoin
   const sortedCats = cats
     .filter(t => order.includes(t.slug))
@@ -145,18 +145,8 @@ function cardHTML(p){
   `;
 }
 
-
-
-
-
   // 5) Rendu initial (toutes catégories)
   grid.innerHTML = plats.map(cardHTML).join('');
-
-
-
-
-
-
 
   // 6) Filtrage par onglet
   tabsEl.addEventListener('click', (e)=>{
@@ -294,7 +284,6 @@ function cardHTML(p){
     }
   });
 })();
-
 
 // ===== SLIDER DES AVIS (testimonials) =====
 (function(){

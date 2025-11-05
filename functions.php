@@ -1,16 +1,24 @@
 <?php
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
-// Enqueue scripts and styles
+// Enqueue scripts and styles with performance optimizations
 function nb_landing_scripts() {
-    // CSS
-    wp_enqueue_style( 'nb-main', get_template_directory_uri() . '/assets/css/main.css', array(), '1.0.0' );
+    // Check if minified versions exist and we're not in development
+    $is_production = ! defined( 'WP_DEBUG' ) || ! WP_DEBUG;
+    $css_file = $is_production && file_exists( get_template_directory() . '/assets/css/main.min.css' )
+        ? 'main.min.css' : 'main.css';
+    $js_file = $is_production && file_exists( get_template_directory() . '/assets/js/main.min.js' )
+        ? 'main.min.js' : 'main.js';
 
-    // JavaScript files
-    wp_enqueue_script( 'nb-utils', get_template_directory_uri() . '/assets/js/utils.js', array(), '1.0.0', true );
-    wp_enqueue_script( 'nb-navigation', get_template_directory_uri() . '/assets/js/navigation.js', array(), '1.0.0', true );
-    wp_enqueue_script( 'nb-menu', get_template_directory_uri() . '/assets/js/menu.js', array(), '1.0.0', true );
-    wp_enqueue_script( 'nb-testimonials', get_template_directory_uri() . '/assets/js/testimonials.js', array(), '1.0.0', true );
+    // CSS with versioning for cache busting
+    $css_version = $is_production && file_exists( get_template_directory() . '/assets/css/' . $css_file )
+        ? filemtime( get_template_directory() . '/assets/css/' . $css_file ) : '1.0.0';
+    wp_enqueue_style( 'nb-main', get_template_directory_uri() . '/assets/css/' . $css_file, array(), $css_version );
+
+    // JavaScript files with versioning
+    $js_version = $is_production && file_exists( get_template_directory() . '/assets/js/' . $js_file )
+        ? filemtime( get_template_directory() . '/assets/js/' . $js_file ) : '1.0.0';
+    wp_enqueue_script( 'nb-main', get_template_directory_uri() . '/assets/js/' . $js_file, array(), $js_version, true );
 
     // Localize script for AJAX
     wp_localize_script( 'nb-menu', 'nb_ajax', array(
@@ -94,10 +102,30 @@ function nb_landing_setup() {
 }
 add_action( 'after_setup_theme', 'nb_landing_setup' );
 
-// Add lazy loading to images
+// Add lazy loading and WebP support to images
 function nb_add_lazy_loading( $content ) {
     if ( ! is_admin() ) {
+        // Add lazy loading
         $content = preg_replace( '/<img(.*?)src=/', '<img$1loading="lazy" src=', $content );
+
+        // Add WebP support with fallbacks
+        $content = preg_replace_callback(
+            '/<img([^>]+)src=["\']([^"\']+\.(jpg|jpeg|png))["\']([^>]*)>/i',
+            function( $matches ) {
+                $webp_url = preg_replace( '/\.(jpg|jpeg|png)$/i', '.webp', $matches[2] );
+                $webp_path = str_replace( get_site_url(), ABSPATH, $webp_url );
+
+                if ( file_exists( $webp_path ) ) {
+                    return '<picture>
+                        <source srcset="' . esc_url( $webp_url ) . '" type="image/webp">
+                        <img' . $matches[1] . 'src="' . esc_url( $matches[2] ) . '"' . $matches[4] . '>
+                    </picture>';
+                }
+
+                return $matches[0];
+            },
+            $content
+        );
     }
     return $content;
 }
@@ -161,8 +189,11 @@ add_filter( 'style_loader_src', 'nb_remove_query_strings', 15, 1 );
 // Add preload for critical resources
 function nb_add_preload_headers() {
     if ( ! is_admin() ) {
-        header( 'Link: <' . get_template_directory_uri() . '/assets/css/main.css>; rel=preload; as=style', false );
-        header( 'Link: <' . get_template_directory_uri() . '/assets/js/navigation.js>; rel=preload; as=script', false );
+        $css_file = file_exists( get_template_directory() . '/assets/css/main.min.css' ) ? 'main.min.css' : 'main.css';
+        $js_file = file_exists( get_template_directory() . '/assets/js/main.min.js' ) ? 'main.min.js' : 'main.js';
+
+        header( 'Link: <' . get_template_directory_uri() . '/assets/css/' . $css_file . '>; rel=preload; as=style', false );
+        header( 'Link: <' . get_template_directory_uri() . '/assets/js/' . $js_file . '>; rel=preload; as=script', false );
     }
 }
 add_action( 'send_headers', 'nb_add_preload_headers' );

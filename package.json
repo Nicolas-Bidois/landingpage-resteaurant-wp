@@ -1,0 +1,19 @@
+{
+  "name": "nb-landing",
+  "version": "1.0.0",
+  "description": "Theme WordPress pour restaurant Le Bourgogne",
+  "scripts": {
+    "build": "npm run build:css && npm run build:js",
+    "build:css": "postcss assets/css/main.css -o assets/css/main.min.css --use cssnano",
+    "build:js": "terser assets/js/main.js -o assets/js/main.min.js --compress --mangle",
+    "watch": "npm run watch:css & npm run watch:js",
+    "watch:css": "postcss assets/css/main.css -o assets/css/main.min.css --use cssnano --watch",
+    "watch:js": "terser assets/js/main.js -o assets/js/main.min.js --compress --mangle --watch"
+  },
+  "devDependencies": {
+    "cssnano": "^6.0.1",
+    "postcss": "^8.4.31",
+    "postcss-cli": "^10.1.0",
+    "terser": "^5.24.0"
+  }
+}
