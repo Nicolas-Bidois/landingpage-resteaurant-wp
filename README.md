@@ -47,10 +47,10 @@ Le restaurant peut ainsi :
 ## 📸 Aperçus
 
 ### Version desktop
-![Restaurant Landing Page Desktop](assets/img/hero-resto@x.webp)
+![Restaurant Landing Page Desktop](assets/img/Screenshot- langingpage-nb.png)
 
 ### Version mobile
-*Capture réalisée en navigation privée sur Chrome DevTools (iPhone 12 Pro – 390×844)*
+*Capture réalisée en navigation privée sur Mozila DevTools *
 
 ## 📦 Installation locale (pour test)
 
