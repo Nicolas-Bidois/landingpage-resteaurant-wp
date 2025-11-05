@@ -132,12 +132,16 @@ function nb_increase_upload_limits( $size ) {
 }
 add_filter( 'upload_size_limit', 'nb_increase_upload_limits' );
 
+// Increase PHP memory limit if needed
+@ini_set( 'memory_limit', '512M' );
+
 // Increase memory limit for image processing
 function nb_increase_memory_limit( $limit ) {
-    // Increase to 256MB for image processing
-    return '256M';
+    // Increase to 512MB for image processing
+    return '512M';
 }
 add_filter( 'image_memory_limit', 'nb_increase_memory_limit' );
+add_filter( 'wp_memory_limit', 'nb_increase_memory_limit' );
 
 // Add support for more image sizes
 function nb_add_image_sizes() {
