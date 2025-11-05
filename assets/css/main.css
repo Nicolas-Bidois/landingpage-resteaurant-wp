@@ -880,7 +880,7 @@ button:focus, a:focus, input:focus, textarea:focus, select:focus {
 
 /* Styles pour le logo personnalisé */
 .nb-logo {
-  max-height: 40px;
+  max-height: var(--nb-logo-height, 40px);
   width: auto;
   display: block;
 }

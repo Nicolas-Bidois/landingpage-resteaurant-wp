@@ -33,6 +33,7 @@ function nb_generate_custom_css() {
     $bg_color = get_option('nbcore_bg_color', '#0B1220');
     $font_family = get_option('nbcore_font_family', 'Inter');
     $border_radius = get_option('nbcore_border_radius', '16');
+    $logo_height = get_option('nbcore_logo_height', '40');
 
     $css = "
     :root {
@@ -43,6 +44,7 @@ function nb_generate_custom_css() {
         --nb-bg: {$bg_color};
         --nb-font-family: '{$font_family}', system-ui, sans-serif;
         --nb-radius: {$border_radius}px;
+        --nb-logo-height: {$logo_height}px;
     }
 
     body {
