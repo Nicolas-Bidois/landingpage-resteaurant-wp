@@ -591,6 +591,9 @@ body {
   gap: 32px;
 }
 @media(max-width:768px){
+  .site-footer .footer-content { grid-template-columns: 1fr 1fr; gap: 24px; }
+}
+@media(max-width:480px){
   .site-footer .footer-content { grid-template-columns: 1fr; gap: 24px; }
 }
 .site-footer .footer-brand a {
