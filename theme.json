@@ -1,0 +1,17 @@
+{
+  "version": 2,
+  "settings": {
+    "color": {
+      "palette": [
+        { "slug": "bg", "color": "#0B1220" },
+        { "slug": "fg", "color": "#F7F8FA" },
+        { "slug": "accent", "color": "#F59E0B" },
+        { "slug": "accent2", "color": "#EF4444" }
+      ]
+    }
+  },
+  "styles": {
+    "color": { "background": "#0B1220", "text": "#F7F8FA" },
+    "elements": { "link": { "color": { "text": "#F59E0B" } } }
+  }
+}
