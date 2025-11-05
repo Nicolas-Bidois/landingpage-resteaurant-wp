@@ -15,7 +15,14 @@
 
     <!-- Logo / Nom de l’enseigne -->
     <a class="nb-brand" href="<?php echo esc_url(home_url('/')); ?>#top">
-      Maison <span class="nb-grad">Luma</span>
+      <?php
+      $logo_url = get_option('nbcore_logo_url');
+      if ($logo_url) {
+        echo '<img src="' . esc_url($logo_url) . '" alt="' . get_bloginfo('name') . '" class="nb-logo">';
+      } else {
+        echo 'Maison <span class="nb-grad">Luma</span>';
+      }
+      ?>
     </a>
 
     <!-- Bouton burger (mobile) -->

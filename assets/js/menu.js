@@ -31,12 +31,29 @@ function nbEsc(s){
   // Show loading state
   grid.innerHTML = '<div class="nb-loading">Chargement de la carte...</div>';
 
+  // Retry logic for API calls
+  async function fetchWithRetry(url, options = {}, maxRetries = 3) {
+    for (let i = 0; i < maxRetries; i++) {
+      try {
+        const response = await fetch(url, options);
+        if (response.ok) return response;
+        if (i === maxRetries - 1) throw new Error(`HTTP ${response.status}`);
+      } catch (error) {
+        if (i === maxRetries - 1) throw error;
+        await new Promise(resolve => setTimeout(resolve, 1000 * (i + 1))); // Exponential backoff
+      }
+    }
+  }
+
   // 1) Catégories depuis l'API WP (taxonomie show_in_rest:true)
   let cats = [];
   try {
-    const resCats = await fetch('/wp-json/wp/v2/categorie-plat?per_page=100');
+    const resCats = await fetchWithRetry('/wp-json/wp/v2/categorie-plat?per_page=100');
     if(resCats.ok) cats = await resCats.json();
-  } catch(e){ /* ignore */ }
+  } catch(e){
+    console.warn('Erreur chargement catégories:', e);
+    // Continue without categories
+  }
 
   // Ordonne/filtre (adapte la liste pour limiter un "secteur")
   const order = ['entrees','plats','desserts','boissons']; // <- réduis ici si besoin
@@ -46,18 +63,24 @@ function nbEsc(s){
 
   // 2) Rendu des onglets
   tabsEl.innerHTML = [
-    `<button class="nb-tab is-active" data-cat="all">Tout</button>`,
-    ...sortedCats.map(t => `<button class="nb-tab" data-cat="${t.slug}">${nbEsc(t.name)}</button>`)
+    `<button class="nb-tab is-active" data-cat="all" aria-pressed="true">Tout</button>`,
+    ...sortedCats.map(t => `<button class="nb-tab" data-cat="${t.slug}" aria-pressed="false">${nbEsc(t.name)}</button>`)
   ].join('');
 
   // 3) Récup de tous les plats (endpoint enfant nb/v1/carte)
   let plats = [];
   try {
-    const res = await fetch('/wp-json/nb/v1/carte');
+    const res = await fetchWithRetry('/wp-json/nb/v1/carte');
     if(!res.ok) throw new Error('API');
     plats = await res.json();
   } catch(e){
-    grid.innerHTML = `<p class="nb-info">Erreur de chargement de la carte.</p>`;
+    console.error('Erreur chargement carte:', e);
+    grid.innerHTML = `
+      <div class="nb-error">
+        <p>Erreur de chargement de la carte. Veuillez rafraîchir la page.</p>
+        <button onclick="location.reload()" class="nb-btn">Réessayer</button>
+      </div>
+    `;
     return;
   }
 
@@ -76,8 +99,8 @@ function cardHTML(p){
     : (p.est_vegetarien ? `<div class="nb-alls"><span class="nb-chip">Végétarien</span></div>` : '');
 
   return `
-    <div class="nb-item" data-cats="${(p.categories||[]).join(' ')}">
-      <article class="nb-card" tabindex="0" data-nb-title="${nbEsc(p.title)}" data-nb-desc="${nbEsc(p.description_courte || '')}" data-nb-price="${nbEsc(p.prix || '—')}" data-nb-image="${p.image || ''}" data-nb-spices="${ep}" data-nb-alls="${p.allergenes || (p.est_vegetarien ? 'Végétarien' : '')}">
+    <div class="nb-item" data-cats="${(p.categories||[]).join(' ')}" style="opacity: 0; transform: translateY(20px); transition: all 0.3s ease;">
+      <article class="nb-card" tabindex="0" role="button" aria-label="Voir les détails de ${nbEsc(p.title)}" data-nb-title="${nbEsc(p.title)}" data-nb-desc="${nbEsc(p.description_courte || '')}" data-nb-price="${nbEsc(p.prix || '—')}" data-nb-image="${p.image || ''}" data-nb-spices="${ep}" data-nb-alls="${p.allergenes || (p.est_vegetarien ? 'Végétarien' : '')}">
         <div class="nb-head">
           <div class="nb-left">
             <h3 class="nb-title">${nbEsc(p.title)}</h3>
@@ -89,7 +112,7 @@ function cardHTML(p){
             ${allsHTML}
           </div>
         </div>
-        ${p.image ? `<img src="${p.image}" alt="${nbEsc(p.title)}" class="nb-thumb" loading="lazy">` : ``}
+        ${p.image ? `<img data-src="${p.image}" alt="${nbEsc(p.title)}" class="nb-thumb lazy" loading="lazy">` : ``}
       </article>
     </div>
   `;
@@ -98,28 +121,67 @@ function cardHTML(p){
   // 5) Rendu initial (toutes catégories)
   grid.innerHTML = plats.map(cardHTML).join('');
 
-  // 6) Filtrage par onglet
+  // Animation d'entrée initiale
+  const initialItems = grid.querySelectorAll('.nb-item');
+  initialItems.forEach((item, index) => {
+    setTimeout(() => {
+      item.style.opacity = '1';
+      item.style.transform = 'translateY(0)';
+    }, index * 50);
+  });
+
+  // 6) Filtrage par onglet avec animations
   tabsEl.addEventListener('click', (e)=>{
     const btn = e.target.closest('.nb-tab');
     if(!btn) return;
-    tabsEl.querySelectorAll('.nb-tab').forEach(b=>b.classList.remove('is-active'));
+
+    // Update active tab
+    tabsEl.querySelectorAll('.nb-tab').forEach(b => {
+      b.classList.remove('is-active');
+      b.setAttribute('aria-pressed', 'false');
+    });
     btn.classList.add('is-active');
+    btn.setAttribute('aria-pressed', 'true');
 
     const cat = btn.getAttribute('data-cat');
     const cards = grid.querySelectorAll('.nb-item');
-    cards.forEach(c=>{
-      if(cat === 'all'){
-        c.classList.remove('nb-item-hidden');
-        return;
-      }
-      const cats = (c.getAttribute('data-cats') || '').split(/\s+/);
-      if(cats.includes(cat)){
-        c.classList.remove('nb-item-hidden');
+
+    cards.forEach((c, index) => {
+      const shouldShow = cat === 'all' || (c.getAttribute('data-cats') || '').split(/\s+/).includes(cat);
+
+      if (shouldShow) {
+        // Animation d'entrée avec délai échelonné
+        setTimeout(() => {
+          c.classList.remove('nb-item-hidden');
+          c.style.opacity = '1';
+          c.style.transform = 'translateY(0)';
+        }, index * 30);
       } else {
-        c.classList.add('nb-item-hidden');
+        // Animation de sortie
+        c.style.opacity = '0';
+        c.style.transform = 'translateY(-20px)';
+        setTimeout(() => c.classList.add('nb-item-hidden'), 300);
       }
     });
   });
+
+  // Lazy loading pour les images
+  const lazyImages = grid.querySelectorAll('img.lazy');
+  const imageObserver = new IntersectionObserver((entries, observer) => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting) {
+        const img = entry.target;
+        img.src = img.dataset.src;
+        img.classList.remove('lazy');
+        observer.unobserve(img);
+      }
+    });
+  }, {
+    rootMargin: '50px 0px',
+    threshold: 0.01
+  });
+
+  lazyImages.forEach(img => imageObserver.observe(img));
 })();
 
 // ===== Gestion de la modale popup pour les détails de la carte =====

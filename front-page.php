@@ -21,10 +21,19 @@ get_header();
     </div>
   </div>
   <div class="hero__bg">
-    <picture>
-      <source srcset="<?php echo get_template_directory_uri(); ?>/assets/img/hero-resto@x.webp" type="image/webp" />
-      <img src="<?php echo get_template_directory_uri(); ?>/assets/img/hero-resto1.jpg" alt="Salle du restaurant" loading="eager" />
-    </picture>
+    <?php
+    $hero_bg_url = get_option('nbcore_hero_bg_url');
+    if ($hero_bg_url) {
+      echo '<img src="' . esc_url($hero_bg_url) . '" alt="Salle du restaurant" loading="eager" />';
+    } else {
+      ?>
+      <picture>
+        <source srcset="<?php echo get_template_directory_uri(); ?>/assets/img/hero-resto@x.webp" type="image/webp" />
+        <img src="<?php echo get_template_directory_uri(); ?>/assets/img/hero-resto1.jpg" alt="Salle du restaurant" loading="eager" />
+      </picture>
+      <?php
+    }
+    ?>
     <div class="hero__overlay"></div>
   </div>
   <div class="scroll-indicator">
