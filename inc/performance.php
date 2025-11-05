@@ -125,24 +125,6 @@ function nb_add_lazy_loading( $content ) {
 add_filter( 'the_content', 'nb_add_lazy_loading' );
 add_filter( 'post_thumbnail_html', 'nb_add_lazy_loading' );
 
-// Increase upload limits for images
-function nb_increase_upload_limits( $size ) {
-    // Increase to 10MB
-    return 1024 * 1024 * 10;
-}
-add_filter( 'upload_size_limit', 'nb_increase_upload_limits' );
-
-// Increase PHP memory limit if needed
-@ini_set( 'memory_limit', '512M' );
-
-// Increase memory limit for image processing
-function nb_increase_memory_limit( $limit ) {
-    // Increase to 512MB for image processing
-    return '512M';
-}
-add_filter( 'image_memory_limit', 'nb_increase_memory_limit' );
-add_filter( 'wp_memory_limit', 'nb_increase_memory_limit' );
-
 // Add support for more image sizes
 function nb_add_image_sizes() {
     // Optimize image sizes for performance
@@ -151,13 +133,6 @@ function nb_add_image_sizes() {
     add_image_size( 'nb-thumbnail', 400, 300, true );
 }
 add_action( 'after_setup_theme', 'nb_add_image_sizes' );
-
-// Enable big image size threshold (WordPress 5.3+)
-function nb_big_image_threshold( $threshold ) {
-    // Set to 2560px (default) or increase if needed
-    return 2560;
-}
-add_filter( 'big_image_size_threshold', 'nb_big_image_threshold' );
 
 // Optimize performance: Remove query strings from static resources
 function nb_remove_query_strings( $src ) {
