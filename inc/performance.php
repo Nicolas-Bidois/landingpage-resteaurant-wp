@@ -91,35 +91,69 @@ function nb_generate_custom_css() {
     return $css;
 }
 
-// Add lazy loading and WebP support to images
+// Add lazy loading and WebP support to images (frontend only)
 function nb_add_lazy_loading( $content ) {
-    if ( ! is_admin() ) {
-        // Add lazy loading
-        $content = preg_replace( '/<img(.*?)src=/', '<img$1loading="lazy" src=', $content );
-
-        // Add WebP support with fallbacks
-        $content = preg_replace_callback(
-            '/<img([^>]+)src=["\']([^"\']+\.(jpg|jpeg|png))["\']([^>]*)>/i',
-            function( $matches ) {
-                $webp_url = preg_replace( '/\.(jpg|jpeg|png)$/i', '.webp', $matches[2] );
-                $webp_path = str_replace( get_site_url(), ABSPATH, $webp_url );
-
-                if ( file_exists( $webp_path ) ) {
-                    return '<picture>
-                        <source srcset="' . esc_url( $webp_url ) . '" type="image/webp">
-                        <img' . $matches[1] . 'src="' . esc_url( $matches[2] ) . '"' . $matches[4] . '>
-                    </picture>';
-                }
-
-                return $matches[0];
-            },
-            $content
-        );
+    // Only apply on frontend, not in admin or REST API
+    if ( is_admin() || wp_doing_ajax() || ( defined( 'REST_REQUEST' ) && REST_REQUEST ) ) {
+        return $content;
     }
+
+    // Add lazy loading
+    $content = preg_replace( '/<img(.*?)src=/', '<img$1loading="lazy" src=', $content );
+
+    // Add WebP support with fallbacks
+    $content = preg_replace_callback(
+        '/<img([^>]+)src=["\']([^"\']+\.(jpg|jpeg|png))["\']([^>]*)>/i',
+        function( $matches ) {
+            $webp_url = preg_replace( '/\.(jpg|jpeg|png)$/i', '.webp', $matches[2] );
+            $webp_path = str_replace( get_site_url(), ABSPATH, $webp_url );
+
+            if ( file_exists( $webp_path ) ) {
+                return '<picture>
+                    <source srcset="' . esc_url( $webp_url ) . '" type="image/webp">
+                    <img' . $matches[1] . 'src="' . esc_url( $matches[2] ) . '"' . $matches[4] . '>
+                </picture>';
+            }
+
+            return $matches[0];
+        },
+        $content
+    );
+
     return $content;
 }
 add_filter( 'the_content', 'nb_add_lazy_loading' );
 add_filter( 'post_thumbnail_html', 'nb_add_lazy_loading' );
+
+// Increase upload limits for images
+function nb_increase_upload_limits( $size ) {
+    // Increase to 10MB
+    return 1024 * 1024 * 10;
+}
+add_filter( 'upload_size_limit', 'nb_increase_upload_limits' );
+
+// Increase memory limit for image processing
+function nb_increase_memory_limit( $limit ) {
+    // Increase to 256MB for image processing
+    return '256M';
+}
+add_filter( 'image_memory_limit', 'nb_increase_memory_limit' );
+
+// Add support for more image sizes
+function nb_add_image_sizes() {
+    // Optimize image sizes for performance
+    add_image_size( 'nb-hero', 1920, 1080, true );
+    add_image_size( 'nb-gallery', 800, 600, true );
+    add_image_size( 'nb-thumbnail', 400, 300, true );
+}
+add_action( 'after_setup_theme', 'nb_add_image_sizes' );
+
+// Enable big image size threshold (WordPress 5.3+)
+function nb_big_image_threshold( $threshold ) {
+    // Set to 2560px (default) or increase if needed
+    return 2560;
+}
+add_filter( 'big_image_size_threshold', 'nb_big_image_threshold' );
 
 // Optimize performance: Remove query strings from static resources
 function nb_remove_query_strings( $src ) {
