@@ -47,7 +47,7 @@ Le restaurant peut ainsi :
 ## 📸 Aperçus
 
 ### Version desktop
-![Restaurant Landing Page Desktop](assets/img/Screenshot- langingpage-nb.png)
+![Restaurant Landing Page Desktop](assets/img/Screenshot-langingpage-nb.png)
 
 ### Version mobile
 *Capture réalisée en navigation privée sur Mozila DevTools *
