@@ -1,127 +1,177 @@
 <?php
 /**
- * Performance optimizations for NB Landing theme
+ * NB Landing — SEO (version SAFE)
+ * Objectif : balises simples, zéro risque de casse, zéro lourdeur.
  */
+if (!defined('ABSPATH')) exit;
 
-// Enqueue scripts and styles with performance optimizations
-function nb_landing_scripts() {
-    // Check if minified versions exist and we're not in development
-    $is_production = ! defined( 'WP_DEBUG' ) || ! WP_DEBUG;
-    $css_file = $is_production && file_exists( get_template_directory() . '/assets/css/main.min.css' )
-        ? 'main.min.css' : 'main.css';
-    $js_file = $is_production && file_exists( get_template_directory() . '/assets/js/main.min.js' )
-        ? 'main.min.js' : 'main.js';
+/* ----------------------------------------------------------------
+ * 1) Meta description (léger, contextuel, échappé)
+ * ---------------------------------------------------------------- */
+function nb_seo_meta_description_safe() {
+  if (is_admin() || is_404()) return;
 
-    // CSS with versioning for cache busting
-    $css_version = $is_production && file_exists( get_template_directory() . '/assets/css/' . $css_file )
-        ? filemtime( get_template_directory() . '/assets/css/' . $css_file ) : '1.0.0';
-    wp_enqueue_style( 'nb-main', get_template_directory_uri() . '/assets/css/' . $css_file, array(), $css_version );
+  $desc = '';
 
-    // JavaScript files with versioning
-    $js_version = $is_production && file_exists( get_template_directory() . '/assets/js/' . $js_file )
-        ? filemtime( get_template_directory() . '/assets/js/' . $js_file ) : '1.0.0';
-    wp_enqueue_script( 'nb-main', get_template_directory_uri() . '/assets/js/' . $js_file, array(), $js_version, true );
+  if (is_front_page()) {
+    $desc = 'Maison Luma, restaurant bistronomique à Auxerre : cuisine de saison, produits locaux, ambiance chaleureuse. Réservation en ligne.';
+  } elseif (is_singular()) {
+    // essaye l’excerpt sinon 20 mots du contenu
+    $excerpt = get_the_excerpt();
+    $desc = $excerpt ? $excerpt : wp_trim_words(wp_strip_all_tags(get_the_content(null, false, get_the_ID())), 20);
+  } elseif (is_category() || is_tag() || is_tax()) {
+    $term  = get_queried_object();
+    $name  = $term && !is_wp_error($term) ? $term->name : '';
+    $desc  = $name ? 'Découvrez nos contenus “' . $name . '”.' : get_bloginfo('description');
+  } elseif (is_search()) {
+    $q = get_search_query();
+    $desc = $q ? 'Résultats de recherche pour “' . $q . '”.' : get_bloginfo('description');
+  } else {
+    $desc = get_bloginfo('description');
+  }
 
-    // Localize script for AJAX
-    wp_localize_script( 'nb-menu', 'nb_ajax', array(
-        'ajax_url' => admin_url( 'admin-ajax.php' ),
-        'nonce'    => wp_create_nonce( 'nb_menu_nonce' ),
-    ) );
-
-    // Inject custom CSS variables from plugin settings
-    $custom_css = nb_generate_custom_css();
-    wp_add_inline_style( 'nb-main', $custom_css );
+  if ($desc) {
+    echo '<meta name="description" content="' . esc_attr(wp_strip_all_tags($desc)) . '">' . "\n";
+  }
 }
-add_action( 'wp_enqueue_scripts', 'nb_landing_scripts' );
+add_action('wp_head', 'nb_seo_meta_description_safe', 1);
 
-// Generate custom CSS from plugin settings
-function nb_generate_custom_css() {
-    $primary_color = get_option('nbcore_primary_color', '#F59E0B');
-    $secondary_color = get_option('nbcore_secondary_color', '#EF4444');
-    $accent_color = get_option('nbcore_accent_color', '#E94E1B');
-    $text_color = get_option('nbcore_text_color', '#F7F8FA');
-    $bg_color = get_option('nbcore_bg_color', '#0B1220');
-    $font_family = get_option('nbcore_font_family', 'Inter');
-    $border_radius = get_option('nbcore_border_radius', '16');
-    $logo_height = get_option('nbcore_logo_height', '40');
+/* ----------------------------------------------------------------
+ * 2) Canonical (simple, sans conflit)
+ *    Si un plugin SEO est présent, il gérera déjà la balise.
+ * ---------------------------------------------------------------- */
+function nb_seo_canonical_safe() {
+  if (is_admin() || is_404()) return;
 
-    $css = "
-    :root {
-        --nb-primary: {$primary_color};
-        --nb-secondary: {$secondary_color};
-        --nb-accent: {$accent_color};
-        --nb-text: {$text_color};
-        --nb-bg: {$bg_color};
-        --nb-font-family: '{$font_family}', system-ui, sans-serif;
-        --nb-radius: {$border_radius}px;
-        --nb-logo-height: {$logo_height}px;
-    }
+  // Si un autre plugin sort déjà un canonical, on ne double pas.
+  global $wp_filter;
+  if (!empty($wp_filter['wp_head'])) {
+    ob_start();
+    do_action('wp_head');
+    $head = ob_get_clean();
+    if (strpos($head, 'rel="canonical"') !== false) return;
+  }
 
-    body {
-        background-color: var(--nb-bg);
-        color: var(--nb-text);
-        font-family: var(--nb-font-family);
-    }
+  $url = '';
+  if (function_exists('wp_get_canonical_url')) {
+    $url = wp_get_canonical_url();
+  }
+  if (!$url) {
+    if (is_front_page())        $url = home_url('/');
+    elseif (is_singular())      $url = get_permalink();
+    elseif (is_category() || is_tag() || is_tax()) $url = get_term_link(get_queried_object());
+    elseif (is_author())        $url = get_author_posts_url(get_queried_object_id());
+    elseif (is_search())        $url = get_search_link();
+  }
 
-    .nb-btn, .btn {
-        background: var(--nb-primary);
-    }
-
-    .nb-tab.is-active {
-        background: var(--nb-accent);
-    }
-
-    a {
-        color: var(--nb-primary);
-    }
-
-    .nb-menu a:hover {
-        color: var(--nb-primary);
-    }
-
-    .nb-card, .nb-resa, .reservation-form {
-        border-radius: var(--nb-radius);
-    }
-
-    .nb-grad {
-        background: linear-gradient(135deg, var(--nb-primary), var(--nb-secondary));
-    }
-    ";
-
-    return $css;
+  if ($url && !is_wp_error($url)) {
+    echo '<link rel="canonical" href="' . esc_url($url) . '">' . "\n";
+  }
 }
+add_action('wp_head', 'nb_seo_canonical_safe', 2);
 
-// Lazy loading disabled temporarily to troubleshoot memory issues
-// Will be re-enabled once the root cause is identified
-// WordPress 5.5+ has native lazy loading support anyway
+/* ----------------------------------------------------------------
+ * 3) Open Graph / Twitter (très léger, fallback propres)
+ * ---------------------------------------------------------------- */
+function nb_seo_open_graph_safe() {
+  if (is_admin() || is_404()) return;
 
-// Add support for more image sizes
-function nb_add_image_sizes() {
-    // Optimize image sizes for performance
-    add_image_size( 'nb-hero', 1920, 1080, true );
-    add_image_size( 'nb-gallery', 800, 600, true );
-    add_image_size( 'nb-thumbnail', 400, 300, true );
+  $site_name   = get_bloginfo('name');
+  $default_img = get_template_directory_uri() . '/assets/img/hero-resto1.jpg';
+  $title       = wp_get_document_title();
+  $desc        = ''; // même logique que meta description (évite la duplication de code)
+  if (is_front_page()) {
+    $desc = 'Cuisine de saison, produits locaux, ambiance chaleureuse. Réservation en ligne.';
+  } elseif (is_singular()) {
+    $excerpt = get_the_excerpt();
+    $desc = $excerpt ? $excerpt : wp_trim_words(wp_strip_all_tags(get_the_content(null, false, get_the_ID())), 20);
+  } else {
+    $desc = get_bloginfo('description');
+  }
+
+  $img = (is_singular() && has_post_thumbnail()) ? get_the_post_thumbnail_url(get_the_ID(), 'large') : $default_img;
+  $url = (is_singular() ? get_permalink() : home_url(add_query_arg(null, null)));
+
+  echo '<meta property="og:title" content="' . esc_attr($title) . '">' . "\n";
+  echo '<meta property="og:description" content="' . esc_attr(wp_strip_all_tags($desc)) . '">' . "\n";
+  echo '<meta property="og:image" content="' . esc_url($img) . '">' . "\n";
+  echo '<meta property="og:url" content="' . esc_url($url) . '">' . "\n";
+  echo '<meta property="og:type" content="' . (is_singular() ? 'article' : 'website') . '">' . "\n";
+  echo '<meta property="og:site_name" content="' . esc_attr($site_name) . '">' . "\n";
+  echo '<meta name="twitter:card" content="summary_large_image">' . "\n";
 }
-add_action( 'after_setup_theme', 'nb_add_image_sizes' );
+add_action('wp_head', 'nb_seo_open_graph_safe', 3);
 
-// Optimize performance: Remove query strings from static resources
-function nb_remove_query_strings( $src ) {
-    if ( strpos( $src, 'ver=' ) ) {
-        $src = remove_query_arg( 'ver', $src );
-    }
-    return $src;
+/* ----------------------------------------------------------------
+ * 4) Structured Data (ultra sobre, pas de fausses notes)
+ *    - Restaurant en page d’accueil (sans fake reviews/ratings)
+ *    - Fil d’Ariane sur contenus simples
+ * ---------------------------------------------------------------- */
+function nb_seo_structured_data_safe() {
+  if (is_admin() || is_404()) return;
+
+  if (is_front_page()) {
+    $data = [
+      '@context' => 'https://schema.org',
+      '@type'    => 'Restaurant',
+      'name'     => 'Maison Luma',
+      'url'      => home_url('/'),
+      'description' => 'Cuisine de saison • Bistronomie locale',
+      'image'    => get_template_directory_uri() . '/assets/img/hero-resto1.jpg',
+      'address'  => [
+        '@type'           => 'PostalAddress',
+        'addressLocality' => 'Auxerre',
+        'postalCode'      => '89000',
+        'addressCountry'  => 'FR'
+      ],
+      'servesCuisine' => 'French',
+      'priceRange'    => '€€',
+      'acceptsReservations' => true
+    ];
+    echo '<script type="application/ld+json">' . wp_json_encode($data) . '</script>' . "\n";
+  }
+
+  if (is_singular()) {
+    $crumb = [
+      '@context' => 'https://schema.org',
+      '@type'    => 'BreadcrumbList',
+      'itemListElement' => [
+        [
+          '@type'    => 'ListItem',
+          'position' => 1,
+          'name'     => 'Accueil',
+          'item'     => home_url('/')
+        ],
+        [
+          '@type'    => 'ListItem',
+          'position' => 2,
+          'name'     => get_the_title(),
+          'item'     => get_permalink()
+        ],
+      ]
+    ];
+    echo '<script type="application/ld+json">' . wp_json_encode($crumb) . '</script>' . "\n";
+  }
 }
-add_filter( 'script_loader_src', 'nb_remove_query_strings', 15, 1 );
-add_filter( 'style_loader_src', 'nb_remove_query_strings', 15, 1 );
+add_action('wp_head', 'nb_seo_structured_data_safe', 4);
 
-// Add preload for critical resources
-function nb_add_preload_headers() {
-    if ( ! is_admin() ) {
-        $css_file = file_exists( get_template_directory() . '/assets/css/main.min.css' ) ? 'main.min.css' : 'main.css';
-        $js_file = file_exists( get_template_directory() . '/assets/js/main.min.js' ) ? 'main.min.js' : 'main.js';
+/* ----------------------------------------------------------------
+ * 5) Sitemap : on NE FAIT RIEN
+ *    WP ≥ 5.5 expose déjà /wp-sitemap.xml
+ *    (Évite de fabriquer un sitemap custom qui peut entrer en conflit)
+ * ---------------------------------------------------------------- */
 
-        header( 'Link: <' . get_template_directory_uri() . '/assets/css/' . $css_file . '>; rel=preload; as=style', false );
-        header( 'Link: <' . get_template_directory_uri() . '/assets/js/' . $js_file . '>; rel=preload; as=script', false );
-    }
+/* ----------------------------------------------------------------
+ * 6) robots.txt : on peut simplement ajouter l’URL du sitemap natif
+ * ---------------------------------------------------------------- */
+function nb_seo_robots_txt_safe($output) {
+  $output .= "\n# Sitemap (natif WP)\n";
+  $output .= 'Sitemap: ' . home_url('/wp-sitemap.xml') . "\n";
+  return $output;
 }
-add_action( 'send_headers', 'nb_add_preload_headers' );
+add_filter('robots_txt', 'nb_seo_robots_txt_safe', 20, 1);
+
+/* ----------------------------------------------------------------
+ * 7) Google Analytics : mieux via un plugin (ex. Site Kit)
+ *    -> On ne sort rien ici pour éviter double tracking / CSP
+ * ---------------------------------------------------------------- */
